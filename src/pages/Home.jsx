@@ -11,23 +11,9 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // fetch only when session is available
-    if (session) {
-      fetchProducts();
-      // optional: subscribe to realtime changes for products additions
-      // const subscription = supabase
-      //   .channel('public:products')
-      //   .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'products' }, payload => {
-      //     // refetch or append
-      //     fetchProducts();
-      //   })
-      //   .subscribe();
-      // return () => supabase.removeChannel(subscription);
-    } else {
-      // clear products when logged out
-      setProducts([]);
-    }
-  }, [session]);
+    // fetch products for everyone (guest or logged in)
+    fetchProducts();
+  }, []);
 
   async function fetchProducts() {
     setLoading(true);
@@ -36,6 +22,7 @@ export default function Home() {
         .from('products')
         .select('id, name, price, image_path, details, seller_id, created_at')
         .order('created_at', { ascending: false });
+
       if (error) throw error;
       setProducts(data || []);
     } catch (err) {
@@ -45,36 +32,84 @@ export default function Home() {
     }
   }
 
-  // if not logged in: show Login/Signup CTA (assignment requirement)
-  if (!session) {
-    return (
-      <div style={{ textAlign: 'center', paddingTop: 80 }}>
-        <h2>Welcome to Circle Marketplace</h2>
-        <p>Please login to browse & sell products.</p>
-        <Link to="/login"><button style={{ marginRight: 10 }}>Login</button></Link>
-        <Link to="/signup"><button>Signup</button></Link>
-      </div>
-    );
-  }
-
   return (
-    <div style={{padding: 12}}>
+    <div style={{ padding: 12 }}>
+      {/* Guest Banner */}
+      {!session && (
+        <div style={{
+          padding: 12,
+          background: "#f5f5f5",
+          border: "1px solid #ddd",
+          borderRadius: 6,
+          marginBottom: 16,
+          textAlign: "center"
+        }}>
+          <p>You are viewing as a guest.</p>
+          <p>
+            <Link to="/login">Login</Link> or <Link to="/signup">Signup</Link> to sell products.
+          </p>
+        </div>
+      )}
+
       <h2>All Products</h2>
+
       {loading && <div>Loading products...</div>}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:12}}>
-        {products.map(p => (
-          <div key={p.id} onClick={() => setSelected(p)} style={{border:'1px solid #ddd',padding:10,cursor:'pointer'}}>
-            <img src={supabase.storage.from('user-products').getPublicUrl(p.image_path).data.publicUrl}
-                 alt={p.name}
-                 style={{width:'100%',height:140,objectFit:'cover'}} />
-            <h4>{p.name}</h4>
-            <div>₹{p.price}</div>
-          </div>
-        ))}
-        {products.length === 0 && !loading && <div>No products yet. Try listing one from /sell</div>}
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: 16,
+          marginTop: 12
+        }}
+      >
+        {products.map((p) => {
+          const publicUrl = supabase
+            .storage
+            .from('user-products')
+            .getPublicUrl(p.image_path).data.publicUrl;
+
+          return (
+            <div
+              key={p.id}
+              onClick={() => setSelected(p)}
+              style={{
+                border: '1px solid #ddd',
+                padding: 10,
+                cursor: 'pointer',
+                borderRadius: 6,
+                background: "#fff",
+                transition: "0.2s",
+              }}
+            >
+              <img
+                src={publicUrl}
+                alt={p.name}
+                style={{
+                  width: '100%',
+                  height: 150,
+                  objectFit: 'cover',
+                  borderRadius: 4,
+                }}
+              />
+              <h4 style={{ marginTop: 8 }}>{p.name}</h4>
+              <div style={{ fontWeight: 'bold' }}>₹{p.price}</div>
+            </div>
+          );
+        })}
+
+        {!loading && products.length === 0 && (
+          <div>No products available.</div>
+        )}
       </div>
 
-      {selected && <ProductModal product={selected} onClose={() => setSelected(null)} />}
+      {/* Modal */}
+      {selected && (
+        <ProductModal
+          product={selected}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </div>
   );
 }
